@@ -130,7 +130,7 @@ public final class Permissions {
         if (requestedScopes.isEmpty()) {
             return populateTypedScopes(resource, resourceServer, authorization);
         }
-        return populateTypedScopes(resource, resourceServer, resource.getScopes(), authorization).stream()
+        return populateTypedScopes(resource, resourceServer, authorization).stream()
                 .filter(scope -> requestedScopes.contains(scope)).collect(Collectors.toSet());
     }
 
