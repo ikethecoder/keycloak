@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -646,6 +647,8 @@ public class AuthorizationTokenService {
 
                 List<Scope> scopes = new ArrayList<>();
 
+                Map<String, ResourcePermission> umaPermissionsToEvaluate = new HashMap<>();
+
                 if (!tickets.isEmpty()) {
                     Resource grantedResource = null;
                     for (PermissionTicket permissionTicket : tickets) {
@@ -658,7 +661,7 @@ public class AuthorizationTokenService {
                     Set relevantRequestedScopes = requestedScopesModel.stream().filter((scope) -> scopes.contains(scope)).collect(Collectors.toSet());
                     // the permission is explicitly granted by the owner, mark this permission as granted so that we don't run the evaluation engine on it
                     ResourcePermission resourcePermission = addPermission(request, resourceServer, authorization,
-                            permissionsToEvaluate, limit,
+                            umaPermissionsToEvaluate, limit,
                             relevantRequestedScopes, grantedResource);
                     if (resourcePermission != null) {
                         Collection<Scope> permissionScopes = resourcePermission.getScopes();
@@ -674,10 +677,12 @@ public class AuthorizationTokenService {
                 if (serverResource != null) {
                     permission.setResourceId(serverResource.getId());
                     Set relevantRequestedScopes = requestedScopesModel.stream().filter((scope) -> !scopes.contains(scope)).collect(Collectors.toSet());
-                    ResourcePermission resourcePermission = addPermission(request, resourceServer, authorization, permissionsToEvaluate, limit, relevantRequestedScopes, serverResource);
-                    if (resourcePermission != null) {
-                        resourcePermission.setGranted(false);
-                    }
+                    addPermission(request, resourceServer, authorization, permissionsToEvaluate, limit, relevantRequestedScopes, serverResource);
+                }
+
+                if (umaPermissionsToEvaluate.size() == 1) {
+                    Optional<ResourcePermission> umaPermission = umaPermissionsToEvaluate.values().stream().findFirst();
+                    permissionsToEvaluate.put(umaPermission.get().getResource().getId() + "granted", umaPermission.get());
                 }
             }
         }
