@@ -644,8 +644,9 @@ public class AuthorizationTokenService {
             if (!identity.isResourceServer() || !identity.getId().equals(resourceServer.getClientId())) {
                 List<PermissionTicket> tickets = storeFactory.getPermissionTicketStore().findGranted(resourceServer, resourceId, identity.getId());
 
+                List<Scope> scopes = new ArrayList<>();
+
                 if (!tickets.isEmpty()) {
-                    List<Scope> scopes = new ArrayList<>();
                     Resource grantedResource = null;
                     for (PermissionTicket permissionTicket : tickets) {
                         if (grantedResource == null) {
@@ -653,11 +654,11 @@ public class AuthorizationTokenService {
                         }
                         scopes.add(permissionTicket.getScope());
                     }
-                    //requestedScopesModel.retainAll(scopes);
+                    Set relevantRequestedScopes = requestedScopesModel.stream().filter((scope) -> scopes.contains(scope)).collect(Collectors.toSet());
+                    // the permission is explicitly granted by the owner, mark this permission as granted so that we don't run the evaluation engine on it
                     ResourcePermission resourcePermission = addPermission(request, resourceServer, authorization,
                             permissionsToEvaluate, limit,
-                            requestedScopesModel, grantedResource, true);
-                    // the permission is explicitly granted by the owner, mark this permission as granted so that we don't run the evaluation engine on it
+                            relevantRequestedScopes, grantedResource, true);
                     if (resourcePermission != null) {
                         Collection<Scope> permissionScopes = resourcePermission.getScopes();
                         if (permissionScopes != null) {
@@ -670,7 +671,8 @@ public class AuthorizationTokenService {
 
                 if (serverResource != null) {
                     permission.setResourceId(serverResource.getId());
-                    addPermission(request, resourceServer, authorization, permissionsToEvaluate, limit, requestedScopesModel, serverResource, false);
+                    Set relevantRequestedScopes = requestedScopesModel.stream().filter((scope) -> !scopes.contains(scope)).collect(Collectors.toSet());
+                    addPermission(request, resourceServer, authorization, permissionsToEvaluate, limit, relevantRequestedScopes, serverResource, false);
                 }
             }
         }
